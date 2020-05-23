@@ -58,7 +58,7 @@ public class OnloadRestController{
         *   2. 영화상세 페이지에서 DB Table Movie의 정보를 얻는다.
         *   3. DB Table Movie에 Data INSERT
         */
-    boolean movieStart = ture;
+    boolean movieStart = true;
     if(movieStart){
         int movieTableCount = (int)movieRepository.count();
         System.out.println("Table Movie(영화) Data 넣는 중... (시작 Data 개수 : "+movieTableCount+"개)");
@@ -138,7 +138,7 @@ public class OnloadRestController{
         /*   
         *   극장별 상영시간표 크롤링 
         */
-    boolean screenAndTimeTable = ture;    //  상영관, 상영 시간표 크롤링 여부
+    boolean screenAndTimeTable = true;    //  상영관, 상영 시간표 크롤링 여부
     if(screenAndTimeTable){    
         boolean saveTimetable = false;
         int screenTableCount = (int)screenRepository.count();
