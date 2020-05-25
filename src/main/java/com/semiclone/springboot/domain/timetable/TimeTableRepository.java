@@ -8,7 +8,8 @@ import org.springframework.data.jpa.repository.Query;
 public interface TimeTableRepository extends JpaRepository<TimeTable, Long>{
 
     /* 더미데이터 INSERT할 때 중복값 체크용 쿼리 */
-    List<TimeTable> findByScreenIdAndMovieIdAndTurningNoAndDateAndStartTimeAndEndTime(
+    @Query("SELECT id FROM TimeTable WHERE screenId = ?1 AND movieId = ?2 AND turningNo = ?3 AND date = ?4 AND startTime = ?5 AND endTime = ?6")
+    List<Long> findIdByScreenIdAndMovieIdAndTurningNoAndDateAndStartTimeAndEndTime(
             Long screenId, Long movieId, int turningNo, Long date, Long startTime, Long endTime);
 
     List<TimeTable> findByScreenId(Long screenId);

@@ -7,7 +7,8 @@ import org.springframework.data.jpa.repository.Query;
 
 public interface ScreenRepository extends JpaRepository<Screen, Long> {
 
-    List<Screen> findByName(String name);
+    @Query("SELECT id FROM Screen WHERE name = ?1 AND cinemaId = ?2")
+    List<Long> findIdByNameAndCinemaId(String name, Long cinemaId);
 
     Screen findOneById(Long screenId);
     
@@ -16,5 +17,8 @@ public interface ScreenRepository extends JpaRepository<Screen, Long> {
 
     @Query("SELECT id FROM Screen WHERE cinemaId = ?1 ORDER BY id ASC")
     List<Long> findIdByCinemaId(Long cinemaId);
+
+    @Query("SELECT id FROM Screen WHERE cinemaId = ?1 AND name = ?2")
+    Long findIdByCinemaIdAndName(Long cinemaId, String name);
 
 }//end of interface

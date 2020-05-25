@@ -9,7 +9,8 @@ public interface CinemaRepository extends JpaRepository<Cinema, Long> {
 
     List<Cinema> findByCinemaArea(String cinemaArea);
 
-    List<Cinema> findByCinemaName(String cinemaName);
+    @Query("SELECT id FROM Cinema WHERE cinemaName = ?1")
+    Long findIdByCinemaName(String cinemaName);
 
     @Query("SELECT cinemaArea FROM Cinema GROUP BY cinemaArea ORDER BY id")
     List<String> findCinemaArea();

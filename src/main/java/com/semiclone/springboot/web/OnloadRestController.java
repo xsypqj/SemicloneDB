@@ -1,9 +1,7 @@
 /*
- * 적용기준일 : 2020.04.25 16:40
+ * 적용기준일 : 2020.05.24 21:00
  */
 package com.semiclone.springboot.web;
-
-import java.util.List;
 
 import com.semiclone.springboot.domain.cinema.Cinema;
 import com.semiclone.springboot.domain.cinema.CinemaRepository;
@@ -53,274 +51,264 @@ public class OnloadRestController{
     
     @RequestMapping(value = "/constructor", method = RequestMethod.GET)
     public String constructor() throws Throwable{
+
+        boolean insertCinema = false;
+        boolean insertMovie = false;
+        boolean insertScreen = false;
+        boolean insertTimeTable = false;
+        boolean insertSeat = false;
+        boolean insertTicket = false;
         
         System.out.println("-- INSERT DB Data Start... 1. Cinema, 2. Movie, 3. Screen, 4. TimeTable, 5. Seat, 6. Ticket");   
 
-        this.insertCinemas();
+        if(insertCinema){
+            this.insertCinemas();
+        }
         
         /*  
-        *   영화 상세정보 크롤링
         *   1. 영화리스트에서 영화상세 페이지 Url 정보를 얻는다.
         *   2. 영화상세 페이지에서 DB Table Movie의 정보를 얻는다.
         *   3. DB Table Movie에 Data INSERT
         */
-    boolean movieStart = true;
-    if(movieStart){
-        int movieTableCount = (int)movieRepository.count();
-        System.out.println("Table Movie(영화) Data 넣는 중... (시작 Data 개수 : "+movieTableCount+"개)");
+        int screenTableCount = (int)screenRepository.count();
+        int timeTableTableCount = (int)timeTableRepository.count();
+        /* 콘솔 모니터링용 */
+        if(insertMovie){
+            System.out.println("Table Movie(영화) Data 넣는 중... (시작 Data 개수 : "+(int)movieRepository.count()+"개)");
+        }
+        if(insertScreen){
+            System.out.println("Table Screen(상영관) Data 넣는 중... (시작 Data 개수 : "+screenTableCount+"개)");
+        }
+        if(insertTimeTable){
+            System.out.println("Table TimeTable(상영 시간표) Data 넣는 중... (시작 Data 개수 : "+timeTableTableCount+"개)");
+        }
 
-        int listNo = 1;
-        Document movieList = Jsoup.connect("http://www.cgv.co.kr/reserve/show-times/movies.aspx").get();
+        int listNum = 1;
+        Document moviesList = Jsoup.connect("http://www.cgv.co.kr/reserve/show-times/movies.aspx").get();
         while(true){
-             
+            
             /* 영화상세 페이지 URL 유효성 검사 */
             String movieidx;
-            if(!(movieidx = movieList.select("#movie_list > ul > li:nth-child("+listNo+") > a").attr("data-movieidx")).equals("")){
-                Document movieDetail =  Jsoup.connect("http://www.cgv.co.kr/movies/detail-view/?midx="+movieidx).get();
-                
+            if(!(movieidx = moviesList.select("#movie_list > ul > li:nth-child("+listNum+") > a").attr("data-movieidx")).equals("")){
+
                 /* 영화만 저장 */
+                Document movieDetail =  Jsoup.connect("http://www.cgv.co.kr/movies/detail-view/?midx="+movieidx).get();
                 if(movieDetail.select(".spec > dl").text().substring(0,2).equals("감독")){
                     
-                    String movieRelease = movieDetail.select(".spec > dl > dd:nth-child(11)").text();
-                    String releaseDate = (movieRelease.length() > 0) ? movieRelease.substring(0,4) + movieRelease.substring(5,7) + movieRelease.substring(8,10) : "0";
-                    String releaseType = (movieRelease.length() > 10) ? movieRelease.substring(10,15) : "(개봉)";
-                    String movieIntro = movieDetail.select(".sect-story-movie").toString();
-                            movieIntro = (movieIntro.length() > 38) ? movieIntro.substring(33, movieIntro.length()-8).trim() : "";
-                    String genre = movieDetail.select(".spec > dl > dt:nth-child(6)").text();
-                            genre = (genre.equals("")) ? "(공백)" : ((genre.length() > 4) ? genre.substring(5, genre.length()) : "") ;
-                    int movieBaseLocation = (movieDetail.select(".spec > dl > dd:nth-child(4)").text().equals("")) ? 9 : 10;
-                    int movieActorLocation = (movieDetail.select(".spec > dl > dd:nth-child(4)").text().equals("")) ? 5 : 6;
-                    String actor = movieDetail.select(".spec > dl > dd:nth-child("+movieActorLocation+")").text();
-                            actor = (actor.equals("")) ? "(공백)" : actor;
-                    int infoLength = movieDetail.select(".spec > dl > dd:nth-child("+movieBaseLocation+")").text().split(",").length;
-                    String movieTime = (infoLength < 3) ? "(공백)" : movieDetail.select(".spec > dl > dd:nth-child("+movieBaseLocation+")").text().split(",")[1].trim();
-                    String movieRating = movieDetail.select(".spec > dl > dd:nth-child("+movieBaseLocation+")").text().split(",")[0].trim();
-                            movieRating = (movieRating.equals("")) ? "(공백)" : (movieRating.equals("12세 이상") ? "12" : (movieRating.equals("15세 이상") ? "15" : "19"));
-                    String movieCountry = (infoLength < 3) ? "(공백)" : movieDetail.select(".spec > dl > dd:nth-child("+movieBaseLocation+")").text().split(",")[2].trim();
-                            movieCountry = (movieCountry.equals("")) ? "(공백)" : movieCountry;
-                    String movieDrector = "";
-                            int actorListNo = 1;
-                            while(true){
-                                /* 영화 감독이 여러명이면.. */
-                                if( movieDetail.select(".spec > dl > dd:nth-child(2) > a:nth-child("+actorListNo+")").text() != null
-                                            && !movieDetail.select(".spec > dl > dd:nth-child(2) > a:nth-child("+actorListNo+")").text().equals("") ){
-                                    movieDrector += movieDetail.select(".spec > dl > dd:nth-child(2) > a:nth-child("+actorListNo+")").text() + ", ";
-                                }else{
-                                    break;
-                                }
-                                actorListNo++;
-                            }
-                            movieDrector = (movieDrector.equals("")) ? "(공백)" : (movieDrector.substring(0, movieDrector.length()-2));
-                    String reservation = movieDetail.select(".box-contents > div.score > strong.percent > span").text();
-                    Float reservationRate = Float.valueOf(reservation.substring(0, reservation.length()-1)).floatValue();
+                    String movieTitle = movieDetail.select("#select_main > div.sect-base-movie > div.box-contents > div.title > strong").text();
+                    if(insertMovie){
+                        this.insertMovies(movieDetail, movieTitle);
+                    }//end of insertMovie
 
-                    /* DB INSERT */
-                    if(movieRepository.findOneByMovieTitle(movieDetail.select(".title > strong").text()) == null){
-                        movieRepository.save(Movie.builder()
-                                                    .movieRating(movieRating)
-                                                    .movieTitle(movieDetail.select(".box-contents > div.title > strong").text())
-                                                    .movieTitleEng(movieDetail.select(".title > p").text())
-                                                    .movieGenre(genre)
-                                                    .movieTime(movieTime)
-                                                    .movieImage(movieDetail.select(".box-image > a > span > img").attr("src"))
-                                                    .movieDrector(movieDrector)
-                                                    .movieActor(actor)
-                                                    .movieCountry(movieCountry)
-                                                    .movieIntro(new javax.sql.rowset.serial.SerialClob(movieIntro.toCharArray()))
-                                                    .reservationRate(reservationRate)
-                                                    .releaseDate((long)Integer.parseInt(releaseDate))
-                                                    .releaseType(releaseType).build());
-                    }                             
-                    
-                }//end of save
+                    /* 영화 시간표 메인 */
+                    int areaListNo = 1;
+                    Document movieShowTimes =  Jsoup.connect("http://www.cgv.co.kr/common/showtimes/iframeMovie.aspx?midx="+movieidx).get();
+                    while(true){
+                        
+                        /* 극장 지역 URL 유효성 검사 */
+                        Elements areaUrl = movieShowTimes.select(".sect-city > ul > li:nth-child("+areaListNo+") > a");
+                        if( ( areaUrl.attr("href") != null ) && ( !areaUrl.attr("href").equals("") ) ){
+                            
+                            /* 영화 시간표 리스트 */
+                            int timeListNo = 1;
+                            Document timeTable =  Jsoup.connect("http://www.cgv.co.kr/common/showtimes"+areaUrl.attr("href").substring(1, areaUrl.attr("href").length())).get();
+                            while(true){
+                                
+                                /* 상영 날짜 리스트 */
+                                String dateUrl = timeTable.select("#slider > div > ul > li:nth-child("+timeListNo+") > div > a").attr("href");
+                                if( (dateUrl != null) && (!dateUrl.equals("")) ){
+                                    
+                                    /* 극장 리스트 */
+                                    Long date = (long)Integer.parseInt(dateUrl.split("date=")[1]);
+                                    int cinemaListNo = 1;
+                                    Document cinemaList =  Jsoup.connect("http://www.cgv.co.kr/common/showtimes"+dateUrl.substring(1, areaUrl.attr("href").length())).get();
+                                    while(true){
+                                        
+                                        /* 극장 이름 리스트 */
+                                        Elements cinema = cinemaList.select(".sect-showtimes > ul > li:nth-child("+cinemaListNo+")");
+                                        String cinemaName = cinema.select(".col-theater").text();   //  극장 이름
+                                        if( (cinemaName != null) && (!cinemaName.equals("")) ){
+                                            
+                                            /* 극장 이름 가공 */
+                                            if(cinemaName.substring(0,3).equals("CGV")){
+                                                cinemaName = cinemaName.split("CGV ")[1];   //  극장 이름에서 'CGV '를 제외
+                                            }else if( cinemaName.substring(0,5).equals("씨네드쉐프") ){
+                                                cinemaName = "CINE DE CHEF "+cinemaName.split("씨네드쉐프 ")[1];
+                                            }else{
+                                                //cinemaName = "CINE KIDS "+cinemaName.split("씨네키드")[1];
+                                            }
+
+                                            /* 상영관 정보 */
+                                            int screenInfoNo = 1;
+                                            while(true){
+                                                
+                                                /* 상영관 정보 리스트 */
+                                                Elements screenList = cinema.select(".col-times").select(".type-hall:nth-child("+screenInfoNo+")");
+                                                if( (screenList.text()) != null && (!screenList.text().equals("")) ){
+
+                                                    String name = screenList.select(".info-hall > ul > li:nth-child(2)").text();    //  상영관 이름
+                                                    Long cinemaId = cinemaRepository.findIdByCinemaName(cinemaName);    // 극장 고유번호
+                                                    if(insertScreen){
+                                                        this.insertScreens(screenList, name, cinemaId);
+                                                    }//end of insertScreen
+                                                    
+                                                    if(insertTimeTable){
+                                                        Elements timeTableList = screenList.select(".info-timetable > ul");
+                                                        this.insertTimeTables(timeTableList, cinemaId, name, movieTitle, date);
+
+                                                    }//end of insertTimeTable
+                                                    
+                                                }else{
+                                                    break;    //  상영관 정보가 없을 경우 정지
+                                                }
+                                                screenInfoNo++;
+                                            }//end of while  ::  상영관 정보
+                                            
+                                        }else{
+                                            break;    //  상영관 이름이 없을 경우 정지
+                                        }
+                                    cinemaListNo++;
+                                    }//end of while  ::  극장 리스트                   
+                                    
+                                }else{
+                                    break;    //  날짜 URL이 없을 경우 정지    
+                                }
+                                timeListNo++;
+                            }//end of while  ::  영화 시간표 리스트 
+
+                        }else{
+                            break;    //  지역 URL이 없을 경우 정지
+                        }
+                        areaListNo++;
+                    }//end of while  :: 영화 시간표 메인
+
+                }//end of if  ::  영화 감독일 경우
+
             }else{
                 break;    // 영화상세 페이지 URL이 없을 경우 정지
             }     
-            listNo++;
-        }//end of while 
-        System.out.println("Table Movie(영화) Data 작업 완료... (총 "+
-                (movieRepository.count()-movieTableCount)+"개 등록완료, 현재 Data : "+movieRepository.count()+"개)\n");
-    }
-        /*   
-        *   극장별 상영시간표 크롤링 
-        */
-    boolean screenAndTimeTable = true;    //  상영관, 상영 시간표 크롤링 여부
-    if(screenAndTimeTable){    
-        boolean saveTimetable = false;
-        int screenTableCount = (int)screenRepository.count();
-        int timeTableTableCount = (int)timeTableRepository.count();
-        for(int i=0; i<2; i++){
-            /* 콘솔 모니터링용 */
-            if(!saveTimetable){
-                System.out.println("Table Screen(상영관) Data 넣는 중... (시작 Data 개수 : "+screenTableCount+"개)");
-            }else{
-                System.out.println("Table TimeTable(상영 시간표) Data 넣는 중... (시작 Data 개수 : "+timeTableTableCount+"개)");
-            }
-
-            int listNum = 1;
-            Document moviesList = Jsoup.connect("http://www.cgv.co.kr/reserve/show-times/movies.aspx").get();
-            while(true){
-                
-                /* 영화상세 페이지 URL 유효성 검사 */
-                String movieidx;
-                if(!(movieidx = moviesList.select("#movie_list > ul > li:nth-child("+listNum+") > a").attr("data-movieidx")).equals("")){
-                    
-                    /* 영화만 저장 */
-                    Document movieDetail =  Jsoup.connect("http://www.cgv.co.kr/movies/detail-view/?midx="+movieidx).get();
-                    if(movieDetail.select(".spec > dl").text().substring(0,2).equals("감독")){
-                        
-                        /* 영화 시간표 메인 */
-                        String movieTitle = movieDetail.select("#select_main > div.sect-base-movie > div.box-contents > div.title > strong").text();    //  영화 제목
-                        int areaListNo = 1;
-                        Document movieShowTimes =  Jsoup.connect("http://www.cgv.co.kr/common/showtimes/iframeMovie.aspx?midx="+movieidx).get();
-                        while(true){
-                            
-                            /* 극장 지역 URL 유효성 검사 */
-                            Elements areaUrl = movieShowTimes.select(".sect-city > ul > li:nth-child("+areaListNo+") > a");
-                            if( ( areaUrl.attr("href") != null ) && ( !areaUrl.attr("href").equals("") ) ){
-                                
-                                /* 영화 시간표 리스트 */
-                                int timeListNo = 1;
-                                Document timeTable =  Jsoup.connect("http://www.cgv.co.kr/common/showtimes"+areaUrl.attr("href").substring(1, areaUrl.attr("href").length())).get();
-                                while(true){
-                                    
-                                    /* 상영 날짜 리스트 */
-                                    String dateUrl = timeTable.select("#slider > div > ul > li:nth-child("+timeListNo+") > div > a").attr("href");
-                                    if( (dateUrl != null) && (!dateUrl.equals("")) ){
-                                        
-                                        /* 극장 리스트 */
-                                        Long date = (long)Integer.parseInt(dateUrl.split("date=")[1]);
-                                        int cinemaListNo = 1;
-                                        Document cinemaList =  Jsoup.connect("http://www.cgv.co.kr/common/showtimes"+dateUrl.substring(1, areaUrl.attr("href").length())).get();
-                                        while(true){
-                                            
-                                            /* 극장 이름 리스트 */
-                                            Elements cinema = cinemaList.select(".sect-showtimes > ul > li:nth-child("+cinemaListNo+")");
-                                            String cinemaName = cinema.select(".col-theater").text();   //  극장 이름
-                                            if( (cinemaName != null) && (!cinemaName.equals("")) ){
-                                                
-                                                /* 극장 이름 가공 */
-                                                if(cinemaName.substring(0,3).equals("CGV")){
-                                                    cinemaName = cinemaName.split("CGV ")[1];   //  극장 이름에서 'CGV '를 제외
-                                                }else if( cinemaName.substring(0,5).equals("씨네드쉐프") ){
-                                                    cinemaName = "CINE DE CHEF "+cinemaName.split("씨네드쉐프 ")[1];
-                                                }else{
-                                                    //cinemaName = "CINE KIDS "+cinemaName.split("씨네키드")[1];
-                                                }
-
-                                                /* 상영관 정보 */
-                                                int screenInfoNo = 1;
-                                                while(true){
-                                                    
-                                                    /* 상영관 정보 리스트 */
-                                                    Elements screenList = cinema.select(".col-times").select(".type-hall:nth-child("+screenInfoNo+")");
-                                                    if( (screenList.text()) != null && (!screenList.text().equals("")) ){
-
-                                                        String dimension = screenList.select(".info-hall > ul > li:nth-child(1)").text();    //  상영 방식
-                                                        String name = screenList.select(".info-hall > ul > li:nth-child(2)").text();    //  상영관 이름
-                                                        Short totalSeat = (short)30;    //  총 좌석수     
-                                                        
-                                                        /* DB TABLE SCREEN INSERT */
-                                                        if(  !saveTimetable && screenRepository.findByName(name).size() == 0 ){    //  먼저, 상영관 테이블 데이터 추가 후 시간표 테이블 데이터 추가를 위한 boolean값
-                                                            Long cinemaId = (long)cinemaRepository.findByCinemaName(cinemaName).get(0).getId();
-                                                            screenRepository.save(new Screen(cinemaId, name, totalSeat, dimension));
-                                                        }
-                                                        
-                                                        if( saveTimetable ){
-                                                            /* 시간표 정보 리스트 */
-                                                            int timeTableInfoNo = 1;
-                                                            Elements timeTableList = screenList.select(".info-timetable > ul");
-                                                            while(true){
-                                                                
-                                                                /* 시간표 정보 */
-                                                                String titmeTableInfo = timeTableList.select("li:nth-child("+timeTableInfoNo+") a").attr("data-playendtime");
-                                                                if( titmeTableInfo != null && (!titmeTableInfo.equals("")) ){
-
-                                                                    Long startTime = (long)Integer.parseInt(timeTableList.select("li:nth-child("+timeTableInfoNo+") a").attr("data-playstarttime"));    //  상영 시작시간
-                                                                    Long endTime = (long)Integer.parseInt(timeTableList.select("li:nth-child("+timeTableInfoNo+") a").attr("data-playendtime"));    //  상영 종료시간
-                                                                    int turningNo = Integer.parseInt(timeTableList.select("li:nth-child("+timeTableInfoNo+") a").attr("data-playnum"));    //  회차
-
-                                                                    /* 상영관 고유번호 */
-                                                                    List<Screen> screens = screenRepository.findByName(name);
-                                                                    Long screenId = null;
-                                                                    if(  screens.size() > 0 ){
-                                                                        screenId = (long)screens.get(0).getId();    //  상영관 고유번호
-                                                                    }
-
-                                                                    /* 영화 고유번호 */
-                                                                    Movie movie = movieRepository.findOneByMovieTitle(movieTitle);
-                                                                    Long movieId = null;
-                                                                    if(  movie != null ){
-                                                                        movieId = (long)movie.getId();    //  영화 고유번호
-                                                                    }
-
-                                                                    Long cinemaId = screenRepository.findCinemaIdById(screenId);    //  극장 고유번호
-
-                                                                    /* DB TABLE TIMETABLE INSERT */
-                                                                    if(timeTableRepository.findByScreenIdAndMovieIdAndTurningNoAndDateAndStartTimeAndEndTime(
-                                                                            screenId, movieId, turningNo, date, startTime, endTime).size() == 0){
-                                                                        timeTableRepository.save(TimeTable.builder().screenId(screenId).movieId(movieId).turningNo(turningNo)
-                                                                                                        .date(date).startTime(startTime).endTime(endTime).cinemaId(cinemaId).build());
-                                                                    }
-
-                                                                }else{
-                                                                    break;    //  시간표 정보가 없을 경우 정지
-                                                                }
-                                                                timeTableInfoNo++;
-                                                            }//end of while  ::  시간표 정보
-                                                        }//end of if  ::  상영관 테이블 데이터 추가 이후에 시간표 테이블 데이터 추가를 위한 if문
-
-                                                    }else{
-                                                        break;    //  상영관 정보가 없을 경우 정지
-                                                    }
-                                                    screenInfoNo++;
-                                                }//end of while  ::  상영관 정보
-                                                
-                                            }else{
-                                                break;    //  상영관 이름이 없을 경우 정지
-                                            }
-                                        cinemaListNo++;
-                                        }//end of while  ::  극장 리스트                   
-                                        
-                                    }else{
-                                        break;    //  날짜 URL이 없을 경우 정지    
-                                    }
-                                    timeListNo++;
-                                }//end of while  ::  영화 시간표 리스트 
-
-                            }else{
-                                break;    //  지역 URL이 없을 경우 정지
-                            }
-                            areaListNo++;
-                        }//end of while  :: 영화 시간표 메인
-
-                    }//end of if  ::  영화 감독일 경우
-
-                }else{
-                    break;    // 영화상세 페이지 URL이 없을 경우 정지
-                }     
-                listNum++;
-            }//end of while  ::  영화 리스트
-            
-            /* 콘솔 모니터링용 */
-            if(!saveTimetable){
-                System.out.println("Table Screen(상영관) Data 작업 완료... (총 "+
-                        (screenRepository.count()-screenTableCount)+"개 등록완료, 현재 Data : "+screenRepository.count()+"개)\n");
-            }else{
-                System.out.println("Table TimeTable(상영 시간표) Data 작업 완료... (총 "+
-                        (timeTableRepository.count()- timeTableTableCount)+"개 등록완료, 현재 Data : "+timeTableRepository.count()+"개)\n");
-            }
-            saveTimetable = true;    //  Screen정보 저장 후 Timetable 작업을 위한 용도
-
-        }//end of for  ::  상영관 테이블, 시간표 테이블 데이터 추가 용도
-    }
-
-        this.insertSeats();
-
-        this.insertTickets();
+            listNum++;
+        }//end of while  ::  영화 리스트
+        
+        /* 콘솔 모니터링용 */
+        if(insertMovie){
+            System.out.println("Table Screen(상영관) Data 작업 완료... (총 "+
+                    (screenRepository.count()-screenTableCount)+"개 등록완료, 현재 Data : "+screenRepository.count()+"개)\n");
+        }
+        if(insertScreen){
+            System.out.println("Table TimeTable(상영 시간표) Data 작업 완료... (총 "+
+                    (timeTableRepository.count()- timeTableTableCount)+"개 등록완료, 현재 Data : "+timeTableRepository.count()+"개)\n");
+        }
+        if(insertTimeTable){
+            System.out.println("Table Movie(영화) Data 작업 완료... (총 "+
+                    (movieRepository.count()-(int)movieRepository.count())+"개 등록완료, 현재 Data : "+movieRepository.count()+"개)\n");        
+        }
+    
+        if(insertSeat){
+            this.insertSeats();
+        }
+        if(insertTicket){
+            this.insertTickets();
+        }
 
         return "모든 Table 작업 완료";
     }//end of Method
+
+    public void insertMovies(Document movieDetail, String movieTitle) throws Exception {
+
+        String movieRelease = movieDetail.select(".spec > dl > dd:nth-child(11)").text();
+        String releaseDate = (movieRelease.length() > 0) ? movieRelease.substring(0,4) + movieRelease.substring(5,7) + movieRelease.substring(8,10) : "0";
+        String releaseType = (movieRelease.length() > 10) ? movieRelease.substring(10,15) : "(개봉)";
+        String movieIntro = movieDetail.select(".sect-story-movie").toString();
+                movieIntro = (movieIntro.length() > 38) ? movieIntro.substring(33, movieIntro.length()-8).trim() : "";
+        String genre = movieDetail.select(".spec > dl > dt:nth-child(6)").text();
+                genre = (genre.equals("")) ? "(공백)" : ((genre.length() > 4) ? genre.substring(5, genre.length()) : "") ;
+        int movieBaseLocation = (movieDetail.select(".spec > dl > dd:nth-child(4)").text().equals("")) ? 9 : 10;
+        int movieActorLocation = (movieDetail.select(".spec > dl > dd:nth-child(4)").text().equals("")) ? 5 : 6;
+        String actor = movieDetail.select(".spec > dl > dd:nth-child("+movieActorLocation+")").text();
+                actor = (actor.equals("")) ? "(공백)" : actor;
+        int infoLength = movieDetail.select(".spec > dl > dd:nth-child("+movieBaseLocation+")").text().split(",").length;
+        String movieTime = (infoLength < 3) ? "(공백)" : movieDetail.select(".spec > dl > dd:nth-child("+movieBaseLocation+")").text().split(",")[1].trim();
+        String movieRating = movieDetail.select(".spec > dl > dd:nth-child("+movieBaseLocation+")").text().split(",")[0].trim();
+                movieRating = (movieRating.equals("")) ? "(공백)" : (movieRating.equals("12세 이상") ? "12" : (movieRating.equals("15세 이상") ? "15" : "19"));
+        String movieCountry = (infoLength < 3) ? "(공백)" : movieDetail.select(".spec > dl > dd:nth-child("+movieBaseLocation+")").text().split(",")[2].trim();
+                movieCountry = (movieCountry.equals("")) ? "(공백)" : movieCountry;
+        String movieDrector = "";
+                int actorListNo = 1;
+                while(true){
+                    /* 영화 감독이 여러명이면.. */
+                    if( movieDetail.select(".spec > dl > dd:nth-child(2) > a:nth-child("+actorListNo+")").text() != null
+                                && !movieDetail.select(".spec > dl > dd:nth-child(2) > a:nth-child("+actorListNo+")").text().equals("") ){
+                        movieDrector += movieDetail.select(".spec > dl > dd:nth-child(2) > a:nth-child("+actorListNo+")").text() + ", ";
+                    }else{
+                        break;
+                    }
+                    actorListNo++;
+                }
+                movieDrector = (movieDrector.equals("")) ? "(공백)" : (movieDrector.substring(0, movieDrector.length()-2));
+        String reservation = movieDetail.select(".box-contents > div.score > strong.percent > span").text();
+        Float reservationRate = Float.valueOf(reservation.substring(0, reservation.length()-1)).floatValue();
+
+        /* DB INSERT */
+        if(movieRepository.findOneByMovieTitle(movieTitle) == null){
+            movieRepository.save(Movie.builder()
+                                        .movieRating(movieRating)
+                                        .movieTitle(movieTitle)
+                                        .movieTitleEng(movieDetail.select(".title > p").text())
+                                        .movieGenre(genre)
+                                        .movieTime(movieTime)
+                                        .movieImage(movieDetail.select(".box-image > a > span > img").attr("src"))
+                                        .movieDrector(movieDrector)
+                                        .movieActor(actor)
+                                        .movieCountry(movieCountry)
+                                        .movieIntro(new javax.sql.rowset.serial.SerialClob(movieIntro.toCharArray()))
+                                        .reservationRate(reservationRate)
+                                        .releaseDate((long)Integer.parseInt(releaseDate))
+                                        .releaseType(releaseType).build());
+        }
+
+    }//end of insertMovies
+
+    public void insertScreens(Elements screenList, String name, Long cinemaId) throws Exception {
+
+        String dimension = screenList.select(".info-hall > ul > li:nth-child(1)").text();    //  상영 방식
+        Short totalSeat = (short)30;    //  총 좌석수     
+        
+        /* DB TABLE SCREEN INSERT */
+        if(screenRepository.findIdByNameAndCinemaId(name, cinemaId).size() == 0){    //  먼저, 상영관 테이블 데이터 추가
+            screenRepository.save(new Screen(cinemaId, name, totalSeat, dimension));
+        }
+
+    }//end of insertScreens
+
+    public void insertTimeTables(Elements timeTableList, Long cinemaId, String name, String movieTitle, Long date) throws Exception {
+
+        int timeTableInfoNo = 1;      
+        while(true){     
+
+            String titmeTableInfo = timeTableList.select("li:nth-child("+timeTableInfoNo+") a").attr("data-playendtime");
+            if( titmeTableInfo != null && (!titmeTableInfo.equals("")) ){
+
+                Long startTime = (long)Integer.parseInt(timeTableList.select("li:nth-child("+timeTableInfoNo+") a").attr("data-playstarttime"));    //  상영 시작시간
+                Long endTime = (long)Integer.parseInt(timeTableList.select("li:nth-child("+timeTableInfoNo+") a").attr("data-playendtime"));    //  상영 종료시간
+                int turningNo = Integer.parseInt(timeTableList.select("li:nth-child("+timeTableInfoNo+") a").attr("data-playnum"));    //  회차
+                Long screenId = screenRepository.findIdByCinemaIdAndName(cinemaId, name);
+                Long movieId = movieRepository.findIdByMovieTitle(movieTitle);
+                /* DB TABLE TIMETABLE INSERT */
+                if(timeTableRepository.findIdByScreenIdAndMovieIdAndTurningNoAndDateAndStartTimeAndEndTime(
+                        screenId, movieId, turningNo, date, startTime, endTime).size() == 0){
+                    timeTableRepository.save(TimeTable.builder().screenId(screenId).movieId(movieId).turningNo(turningNo)
+                                                    .date(date).startTime(startTime).endTime(endTime).cinemaId(cinemaId).build());
+                }
+
+            }else{
+                break;    //  시간표 정보가 없을 경우 정지
+            }
+            timeTableInfoNo++;
+
+        }//end of while  ::  시간표 정보
+
+    }//end of insertTimeTables
 
     public void insertSeats() throws Exception {
 
@@ -349,6 +337,7 @@ public class OnloadRestController{
 
     }//end of insertSeats
 
+    @GetMapping(value = "/ticket")
     public void insertTickets() throws Exception {
         /* DB TABLE TICKET INSERT 
          * 모든 TimeTable(시간표)에 총 좌석 수만큼 티켓 생성
